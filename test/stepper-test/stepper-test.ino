@@ -9,14 +9,14 @@ Adafruit_StepperMotor *rightMotor = AFMS.getStepper(200, 1);
 void setup() {
 //    startPing();
     AFMS.begin();
-    leftMotor->setSpeed(300);
-//    rightMotor->setSpeed(150);
+    leftMotor->setSpeed(400);
+    rightMotor->setSpeed(400);
     
     
 }
 void loop() {
-  leftMotor->step(1, FORWARD, DOUBLE);
-//  rightMotor->step(100, FORWARD, DOUBLE);
+  leftMotor->step(1, FORWARD, INTERLEAVE);
+  rightMotor->step(1, BACKWARD, INTERLEAVE);
 }
 
 
