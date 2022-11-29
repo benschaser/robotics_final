@@ -12,9 +12,10 @@ double gyroAngle=0;
 unsigned long currTime, prevTime=0, loopTime;
 double currentAngle = 0;
 double prevAngle = 0;
-double tau = 0.75;
-double alpha = 0;
+double tau = 0.1;
 double dt = 0.01;
+double alpha = tau / (tau + dt);
+
 
 void setup() {
   Serial.begin(9600);
@@ -31,26 +32,27 @@ void setup() {
 }
 
 void loop() {
-  prevAngle = currentAngle;
+  
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
   
   currTime = millis();
-  loopTime = currTime - prevTime;
+  loopTime = (currTime - prevTime) / 1000;
   prevTime = currTime;
   
   accZ = a.acceleration.z;
   accX = a.acceleration.x;
    
   accAngle = atan2(accX, accZ)*RAD_TO_DEG;
+//  Serial.println("Acc ", accAngle);
 
   gyroY = g.gyro.y;
   gyroRate = map(gyroY, -32768, 32767, -250, 250);
-  gyroAngle = gyroAngle + (double)gyroRate*loopTime/1000;
+  gyroAngle = gyroAngle + (float)gyroRate*loopTime;
 
   // complementary filter (high and low pass filter)
-  alpha = tau / (tau + dt);
   currentAngle = alpha*(prevAngle + gyroAngle) + (1 - alpha)*accAngle;
   
+  prevAngle = currentAngle;
   Serial.println(currentAngle);
 }
