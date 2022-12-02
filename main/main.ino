@@ -8,26 +8,30 @@ Adafruit_MPU6050 mpu;
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 Adafruit_StepperMotor *leftMotor = AFMS.getStepper(200, 2);
 Adafruit_StepperMotor *rightMotor = AFMS.getStepper(200, 1);
+// set offsets
+
 
 // Angle of Inclination
 int accX, accZ;
 double accAngle;
 int gyroY, gyroRate;
 double gyroAngle=0;
-unsigned long currTime, prevTime=0, loopTime;
+unsigned long currTime, prevTime=0;
+double loopTime;
 double currentAngle = 0;
 double prevAngle = 0;
-double tau = 0.1;
+double tau = 0.5;
 double dt = 0.01;
 double alpha = tau / (tau + dt);
 
 // PID Constants
-double Kp = 3.44;
-double Ki = 0.048;
-double Kd = 1.92;
+double Kp = 8.0;
+double Ki = 0.05;
+double Kd = 4.0;
 
 double targetAngle = 0;
 double difference = 0;
+double prevDif = 0;
 double difSum = 0;
 double motorSpeed = 0;
 
@@ -44,21 +48,44 @@ void setup() {
   // set filter bandwidth to 21 Hz
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
+//  mpu.setXAccelOffset(315);
+//  mpu.setYAccelOffset(993);
+//  mpu.setZAccelOffset(415);
+//  mpu.setXGyroOffset(93);
+//  mpu.setYGyroOffset(-23);
+//  mpu.setZGyroOffset(-11);
+
   AFMS.begin();
 }
+
 void loop() {
   currTime = millis();
 //  Serial.println(currTime - prevTime);
   loopTime = (currTime - prevTime);
+  loopTime = loopTime / 1000;
   prevTime = currTime;
   
   getCurrentAngle(loopTime);
+  Serial.println(currentAngle);
   calcSpeed();
-  Serial.println(motorSpeed);
+//  Serial.println(motorSpeed);
+//
+//  if (motorSpeed < 1.0 && motorSpeed > -1.0) {
+//    
+//  }
+//  else if (motorSpeed < 0.0) {
+//    
+//  }
+//  else if (motorSpeed > 0.0) {
+//    
+//  }
+  
   prevAngle = currentAngle;
 }
 
-void getCurrentAngle(unsigned long elapsedTime) {
+
+
+void getCurrentAngle(double elapsedTime) {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
   
@@ -67,16 +94,17 @@ void getCurrentAngle(unsigned long elapsedTime) {
    
   accAngle = atan2(accX, accZ)*RAD_TO_DEG;
 
-  gyroY = g.gyro.y;
+  gyroY = -g.gyro.y;
   gyroRate = map(gyroY, -32768, 32767, -250, 250);
-  gyroAngle = gyroAngle + (float)gyroRate*elapsedTime*0.001;
+  gyroAngle = gyroAngle + (float)gyroRate*elapsedTime;
 
   currentAngle = alpha*(prevAngle + gyroAngle) + (1 - alpha)*accAngle;
 }
 void calcSpeed() {
   difference = currentAngle - targetAngle;
-  difSum = difSum + difference;
+  difSum += difference;
   difSum = constrain(difSum, -300, 300);
 //  Serial.println(loopTime);
-  motorSpeed = Kp*difference + Ki*difSum*loopTime - Kd*(currentAngle - prevAngle)/(loopTime*0.001);
+  motorSpeed = Kp*difference + Ki*difSum*loopTime + Kd*(difference - prevDif)/loopTime;
+  prevDif = difference;
 }

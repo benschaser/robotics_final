@@ -16,7 +16,6 @@ double tau = 0.1;
 double dt = 0.01;
 double alpha = tau / (tau + dt);
 
-
 void setup() {
   Serial.begin(9600);
   mpu.begin();
