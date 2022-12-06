@@ -6,8 +6,8 @@
 
 Adafruit_MPU6050 mpu;
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
-Adafruit_StepperMotor *leftMotor = AFMS.getStepper(600, 2);
-Adafruit_StepperMotor *rightMotor = AFMS.getStepper(600, 1);
+Adafruit_StepperMotor *leftMotor = AFMS.getStepper(200, 2);
+Adafruit_StepperMotor *rightMotor = AFMS.getStepper(200, 1);
 
 // Angle of Inclination
 double accX, accZ;
@@ -27,9 +27,9 @@ double dt = 0.004;
 double alpha = tau / (tau + dt);
 
 // PID Constants
-double Kp = 0.0;
-double Ki = 0.0;
-double Kd = 0.0;
+double Kp = 30.0;
+double Ki = 0.08;
+double Kd = 3.0;
 
 double targetAngle = 0;
 double difference = 0;
@@ -59,6 +59,7 @@ void setup() {
   //  mpu.setZGyroOffset(-11);
 
   AFMS.begin();
+  TWBR = ((F_CPU/400000l) - 16) / 2;
 }
 
 void loop() {
@@ -71,20 +72,23 @@ void loop() {
   getCurrentAngle(loopTime);
   Serial.println(currentAngle);
   calcSpeed();
+  if (motorSpeed < 0.0) {
+    motorSpeed = -motorSpeed;
+  }
 //  Serial.println(motorSpeed);
   //
-//  if ((currentAngle + prevAngle + prevPrevAngle) / 3 < -1.0) {
-//    leftMotor->setSpeed(motorSpeed);
-//    rightMotor->setSpeed(motorSpeed);
-//    leftMotor->step(1, BACKWARD, DOUBLE);
-//    rightMotor->step(1, FORWARD, DOUBLE);
-//  }
-//  else if ((currentAngle + prevAngle + prevPrevAngle) / 3 > 1.0) {
-//    leftMotor->setSpeed(motorSpeed);
-//    rightMotor->setSpeed(motorSpeed);
-//    leftMotor->step(1, FORWARD, DOUBLE);
-//    rightMotor->step(1, BACKWARD, DOUBLE);
-//  }
+  if ((currentAngle + prevAngle + prevPrevAngle) / 3 < -1.0) {
+    leftMotor->setSpeed(motorSpeed);
+    rightMotor->setSpeed(motorSpeed);
+    leftMotor->step(1, BACKWARD, DOUBLE);
+    rightMotor->step(1, FORWARD, DOUBLE);
+  }
+  else if ((currentAngle + prevAngle + prevPrevAngle) / 3 > 1.0) {
+    leftMotor->setSpeed(motorSpeed);
+    rightMotor->setSpeed(motorSpeed);
+    leftMotor->step(1, FORWARD, DOUBLE);
+    rightMotor->step(1, BACKWARD, DOUBLE);
+  }
   prevPrevAngle = prevAngle;
   prevAngle = currentAngle;
 }

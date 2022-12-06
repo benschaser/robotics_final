@@ -3,20 +3,18 @@
 #include "utility/Adafruit_MS_PWMServoDriver.h"
 
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
-Adafruit_StepperMotor *leftMotor = AFMS.getStepper(400, 2);
-Adafruit_StepperMotor *rightMotor = AFMS.getStepper(400, 1);
+Adafruit_StepperMotor *leftMotor = AFMS.getStepper(200, 2);
+Adafruit_StepperMotor *rightMotor = AFMS.getStepper(200, 1);
 
 void setup() {
-//    startPing();
     AFMS.begin();
-    leftMotor->setSpeed(500);
-    rightMotor->setSpeed(500);
-    
-    
+    TWBR = ((F_CPU/400000l) - 16) / 2;
+    leftMotor->setSpeed(300);
+    rightMotor->setSpeed(300);
 }
 void loop() {
-//  leftMotor->step(1, FORWARD, DOUBLE);
-//  rightMotor->step(1, BACKWARD, DOUBLE);
+  leftMotor->step(1, FORWARD, SINGLE);
+  rightMotor->step(1, BACKWARD, SINGLE);
 }
 
 
