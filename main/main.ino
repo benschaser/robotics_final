@@ -3,7 +3,8 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_MotorShield.h>
 #include <AccelStepper.h>
-#include "utility/Adafruit_MS_PWMServoDriver.h"
+#include <Kalman.h>
+//#include "utility/Adafruit_MS_PWMServoDriver.h"
 
 Adafruit_MPU6050 mpu;
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
@@ -27,19 +28,24 @@ double gyroAngle = 0;
 double gyroAngleNext = 0;
 double gyroAnglePrev = 0;
 unsigned long currTime, prevTime = 0;
-double loopTime = 0.004;
+double loopTime = 0.0;
 double currentAngle = 0;
 double prevAngle = 0;
 double tau = 0.7;
-//double dt = 0.005;
+//double dt = 0.0;
 double alpha = tau / (tau + loopTime);
+
+Kalman kalmanY;
+double pitch = 0.0;
+double kalAngleY = 0.0;
+double gyroYrate = 0.0;
 
 // PID Constants
 double Kp = 7.5;
 double Ki = 0.00;
 double Kd = 1.0;
 
-double targetAngle = 4.5;
+double targetAngle = 0;
 double minError = -11.5;
 double maxError = 20.5;
 double error = 0;
@@ -51,7 +57,7 @@ double prevPrevMotorSpeed = 0;
 double motorSpeedAvg = 0;
 double motorSpeedConv = 0;
 double RtoD = 57.2957795131;
-double motorCutoff = 25.0;
+double motorCutoff = 2.0;
 bool active = false;
 int buttonState = 0;
 
@@ -84,17 +90,17 @@ void setup() {
 }
 
 void loop() {
-//  buttonState = digitalRead(8);
-////  Serial.println(buttonState);
-//  if (buttonState == 1) {
-//    active = !active;
-//    delay(200);
-//  }
-//  
-//  if (active) {
-//    _main();
-//  }
-  _main();
+  buttonState = digitalRead(8);
+//  Serial.println(buttonState);
+  if (buttonState == 1) {
+    active = !active;
+    delay(200);
+  }
+  
+  if (active) {
+    _main();
+  }
+//  _main();
 }
 void _main() {
   currTime = millis();
@@ -138,12 +144,20 @@ void getCurrentAngle(double elapsedTime) {
 
   gyroY = g.gyro.y;
 
-  gyroRate = map(gyroY, -32768, 32767, -250, 250);
-  gyroAngle = gyroAngle + (float)gyroRate * elapsedTime;
-  currentAngle = tau * (prevAngle + gyroAngle*loopTime) + (1 - tau) * accAngle;
+//  Complementary Filter
+//  gyroRate = map(gyroY, -32768, 32767, -250, 250);
+//  gyroAngle = gyroAngle + (float)gyroRate * elapsedTime;
+//  currentAngle = tau * (prevAngle + gyroAngle*loopTime) + (1 - tau) * accAngle;
+
+//  Kalman Filter
+  gyroYrate = g.gyro.y / 131.0;
+  pitch = atan2(-a.acceleration.x, a.acceleration.z) * RAD_TO_DEG;
+
+  kalAngleY = kalmanY.getAngle(pitch, gyroYrate, loopTime);
+  currentAngle = kalAngleY;
 }
 void calcSpeed(double angle) {
-  error = 4 * constrain(targetAngle - angle, minError, maxError);
+  error = targetAngle - angle;
   errSum += error * loopTime;
   errSum = constrain(errSum, -300, 300);
   motorSpeed = Kp * error + Ki * errSum + Kd * (error - prevError) / loopTime;
@@ -153,12 +167,12 @@ void calcSpeed(double angle) {
 }
 void drive() {
   if (motorSpeed > motorCutoff  || motorSpeed < -motorCutoff) {
-    Astepper.setSpeed(-motorSpeed);
+    Astepper.setSpeed(motorSpeed);
     Astepper.runSpeed();
   }
-  else {
-    leftMotor->release();
-    rightMotor->release();
-  }
+//  else {
+//    leftMotor->release();
+//    rightMotor->release();
+//  }
   
 }
