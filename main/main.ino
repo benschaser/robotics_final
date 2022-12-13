@@ -4,7 +4,6 @@
 #include <Adafruit_MotorShield.h>
 #include <AccelStepper.h>
 #include <Kalman.h>
-//#include "utility/Adafruit_MS_PWMServoDriver.h"
 
 Adafruit_MPU6050 mpu;
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
@@ -43,13 +42,14 @@ double gyroYrate = 0.0;
 double prevPrevAngle = 0.0;
 
 // PID Constants
-double Kp = 3.6;
-double Ki = 0.8;
-double Kd = 0.0;
+double Kp = 39.5;
+double Ki = 2.2;
+double Kd = 0.11;
+int inKp = 0;
 
 double targetAngle = 0.0;
-double minError = -11.5;
-double maxError = 20.5;
+double minError = -15.0;
+double maxError = 15.0;
 double error = 0;
 double prevError = 0;
 double errSum = 0;
@@ -60,10 +60,17 @@ double motorSpeedAvg = 0;
 double motorSpeedConv = 0;
 double RtoD = 57.2957795131;
 
-double motorCutoff = 2.0;
-double angleThreshold = 1.4;
+double motorCutoff = 4.0;
+double angleThreshold = 1.8;
 bool active = false;
 int buttonState = 0;
+
+int rDir = 1;
+int gDir = 1;
+int bDir = 1;
+int rVal = 0;
+int gVal = 120;
+int bVal = 254;
 
 void setup() {
 //  Serial.begin(9600);
@@ -92,10 +99,37 @@ void setup() {
   TWBR = ((F_CPU/400000l) - 16) / 2;
 
   pinMode(8, INPUT); // btn
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(9, OUTPUT);
+  pinMode(10, OUTPUT);
+  pinMode(11, OUTPUT);
+  pinMode(12, OUTPUT);
+  startPing();
 }
 
 void loop() {
   buttonState = digitalRead(8);
+  rVal = rVal + rDir;
+  gVal = gVal + gDir;
+  bVal = bVal + bDir;
+
+  // for each color, change direction if
+  // you reached 0 or 255
+  if (rVal >= 255 || rVal <= 0) {
+    rDir = rDir * -1;
+  }
+
+  if (gVal >= 255 || gVal <= 0) {
+    gDir = gDir * -1;
+  }
+
+  if (bVal >= 255 || bVal <= 0) {
+    bDir = bDir * -1;
+  }
+//  RGB_color(rVal, gVal, bVal);
 //  Serial.println(buttonState);
   if (buttonState == 1) {
     active = !active;
@@ -103,11 +137,17 @@ void loop() {
   }
   
   if (active) {
+    digitalWrite(5, HIGH);
+    digitalWrite(4, HIGH);
+//    inKp = analogRead(A1);
+//    Kp = map(inKp, 0, 1023, 0, 50.0);
     _main();
   }
   else {
     leftMotor->release();
     rightMotor->release();
+    digitalWrite(5, LOW);
+    digitalWrite(4, LOW);
   }
 //  _main();
 }
@@ -150,7 +190,7 @@ void getCurrentAngle(double elapsedTime) {
   gyroYrate = g.gyro.y / 131.0;
   pitch = atan2(-a.acceleration.x, a.acceleration.z) * RAD_TO_DEG;
   kalAngleY = kalmanY.getAngle(pitch, gyroYrate, loopTime);
-  currentAngle = kalAngleY;
+  currentAngle = kalAngleY + 3.0;
 }
 
 void calcSpeed(double angle) {
@@ -161,14 +201,49 @@ void calcSpeed(double angle) {
   prevError = error;
 
   // hopefully reduce jitter :)
-//  if (abs(motorSpeed < 0 && prevMotorSpeed > 0) || (motorSpeed > 0 && prevMotorSpeed < 0)) {
+//  if (abs(motorSpeed) < motorCutoff && ((motorSpeed < 0 && prevMotorSpeed > 0) || (motorSpeed > 0 && prevMotorSpeed < 0))) {
+//    motorSpeed = -motorSpeed;
+//  }
+
+
+//  if (motorSpeed > 0) {
+//    motorSpeed *= motorSpeed;
+//  }
+//  else {
+//    motorSpeed *= motorSpeed;
 //    motorSpeed = -motorSpeed;
 //  }
 }
-
 void drive() {
   if (motorSpeed > motorCutoff  || motorSpeed < -motorCutoff) {
-    Astepper.setSpeed(7.5 * motorSpeed);
-    Astepper.runSpeed();
-  } 
+    Astepper.setSpeed(motorSpeed);
+  }
+  Astepper.runSpeed();
+}
+
+void startPing() {
+  tone(7, 500, 600);
+  delay(600);
+  tone(7, 750, 100);
+  delay(100);
+  tone(7, 1000, 50);
+  delay(50);
+  tone(7, 1500, 50);
+  delay(50);
+  tone(7, 2000, 50);
+  delay(50);
+  tone(7, 1500, 50);
+  delay(50);
+  tone(7, 1000, 100);
+  delay(100);
+  tone(7, 10, 50);
+  delay(50);
+}
+
+void RGB_color(int red, int green, int blue)
+ {
+  analogWrite(11, red);
+  analogWrite(10, green);
+  analogWrite(9, blue);
+
 }
