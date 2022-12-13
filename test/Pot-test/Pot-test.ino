@@ -1,21 +1,22 @@
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
 #include <Adafruit_MotorShield.h>
 
-// Create the motor shield object with the default I2C address
+int Kp = 0;
+int Kd = 0;
+
+Adafruit_MPU6050 mpu;
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
-// Or, create it with a different I2C address (say for stacking)
-// Adafruit_MotorShield AFMS = Adafruit_MotorShield(0x61);
-
-// Select which 'port' M1, M2, M3 or M4. In this case, M1
-Adafruit_DCMotor *myMotor = AFMS.getMotor(1);
-
 void setup() {
   Serial.begin(9600);
+  mpu.begin();
   AFMS.begin();
-  
 }
 
 void loop() {
-int sensorValue = analogRead(A0);
-Serial.println(sensorValue);
-//myMotor->setSpeed(sensorValue);
+  Kp = analogRead(A2);
+  Kd = analogRead(A3);
+  Serial.print(Kp);
+  Serial.print(' ');
+  Serial.println(Kd);
 }

@@ -39,13 +39,15 @@ Kalman kalmanY;
 double pitch = 0.0;
 double kalAngleY = 0.0;
 double gyroYrate = 0.0;
+//double prevAngle = 0.0;
+double prevPrevAngle = 0.0;
 
 // PID Constants
-double Kp = 7.5;
-double Ki = 0.00;
-double Kd = 1.0;
+double Kp = 3.6;
+double Ki = 0.8;
+double Kd = 0.0;
 
-double targetAngle = 0;
+double targetAngle = 0.0;
 double minError = -11.5;
 double maxError = 20.5;
 double error = 0;
@@ -57,12 +59,15 @@ double prevPrevMotorSpeed = 0;
 double motorSpeedAvg = 0;
 double motorSpeedConv = 0;
 double RtoD = 57.2957795131;
+
 double motorCutoff = 2.0;
+double angleThreshold = 1.4;
 bool active = false;
 int buttonState = 0;
 
 void setup() {
 //  Serial.begin(9600);
+  Wire.begin();
   mpu.begin();
 
   // set accelerometer range to +-8G
@@ -100,49 +105,40 @@ void loop() {
   if (active) {
     _main();
   }
+  else {
+    leftMotor->release();
+    rightMotor->release();
+  }
 //  _main();
 }
 void _main() {
   currTime = millis();
-//  Serial.println(currTime - prevTime);
   loopTime = (currTime - prevTime);
-//  Serial.println(loopTime);
   loopTime = loopTime / 1000;
-  prevTime = currTime;
-//  dt = loopTime;
-  
+  prevTime = currTime;  
   
   getCurrentAngle(loopTime);
-//  Serial.print(currentAngle);
-//  Serial.print(' ');
-//  Serial.print(targetAngle);
-//  Serial.print(' ');
   calcSpeed(currentAngle);
   motorSpeed = constrain(motorSpeed, -500, 500);
-//  motorSpeed = map(motorSpeed, -1000, 1000, -500, 500);
-//  Serial.println(motorSpeedAvg);
-//  motorSpeedConv = map(abs(motorSpeed), 0, 150, 50, 255);
-  drive();
+
+  if(currentAngle > targetAngle + angleThreshold || currentAngle < targetAngle - angleThreshold) {
+    drive();
+  }
   
   prevAngle = currentAngle;
 //  prevPrevMotorSpeed = prevMotorSpeed;
   prevMotorSpeed = motorSpeed;
+  prevPrevAngle = prevAngle;
+  prevAngle = currentAngle;
 }
 
 void getCurrentAngle(double elapsedTime) {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
-  accZ = a.acceleration.z;
-  accX = a.acceleration.x;
-//  Serial.print(accX);
-//  Serial.print("  ");
-//  Serial.print(accZ);
-//  Serial.print('\n');
-
-  accAngle = atan2(accX, accZ) * RtoD;
-
-  gyroY = g.gyro.y;
+//  accZ = a.acceleration.z;
+//  accX = a.acceleration.x;
+//  accAngle = atan2(accX, accZ) * RtoD;
 
 //  Complementary Filter
 //  gyroRate = map(gyroY, -32768, 32767, -250, 250);
@@ -150,29 +146,29 @@ void getCurrentAngle(double elapsedTime) {
 //  currentAngle = tau * (prevAngle + gyroAngle*loopTime) + (1 - tau) * accAngle;
 
 //  Kalman Filter
+  gyroY = g.gyro.y;
   gyroYrate = g.gyro.y / 131.0;
   pitch = atan2(-a.acceleration.x, a.acceleration.z) * RAD_TO_DEG;
-
   kalAngleY = kalmanY.getAngle(pitch, gyroYrate, loopTime);
   currentAngle = kalAngleY;
 }
+
 void calcSpeed(double angle) {
   error = targetAngle - angle;
   errSum += error * loopTime;
   errSum = constrain(errSum, -300, 300);
   motorSpeed = Kp * error + Ki * errSum + Kd * (error - prevError) / loopTime;
-  prevError = error;  
-//  motorSpeedAvg = 0.2 * prevMotorSpeed + 0.8 * motorSpeed;
-//  Serial.println(motorSpeed);
+  prevError = error;
+
+  // hopefully reduce jitter :)
+//  if (abs(motorSpeed < 0 && prevMotorSpeed > 0) || (motorSpeed > 0 && prevMotorSpeed < 0)) {
+//    motorSpeed = -motorSpeed;
+//  }
 }
+
 void drive() {
   if (motorSpeed > motorCutoff  || motorSpeed < -motorCutoff) {
-    Astepper.setSpeed(motorSpeed);
+    Astepper.setSpeed(7.5 * motorSpeed);
     Astepper.runSpeed();
-  }
-//  else {
-//    leftMotor->release();
-//    rightMotor->release();
-//  }
-  
+  } 
 }
