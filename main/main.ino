@@ -31,7 +31,6 @@ double loopTime = 0.0;
 double currentAngle = 0;
 double prevAngle = 0;
 double tau = 0.7;
-//double dt = 0.0;
 double alpha = tau / (tau + loopTime);
 
 Kalman kalmanY;
@@ -55,13 +54,10 @@ double prevError = 0;
 double errSum = 0;
 double motorSpeed = 0;
 double prevMotorSpeed = 0;
-double prevPrevMotorSpeed = 0;
 double motorSpeedAvg = 0;
-double motorSpeedConv = 0;
-double RtoD = 57.2957795131;
 
-double motorCutoff = 4.0;
-double angleThreshold = 1.8;
+double motorCutoff = 1.0;
+double angleThreshold = 0.9;
 bool active = false;
 int buttonState = 0;
 
@@ -73,7 +69,6 @@ int gVal = 120;
 int bVal = 254;
 
 void setup() {
-//  Serial.begin(9600);
   Wire.begin();
   mpu.begin();
 
@@ -85,13 +80,6 @@ void setup() {
 
   // set filter bandwidth to 21 Hz
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-
-  //  mpu.setXAccelOffset(315);
-  //  mpu.setYAccelOffset(993);
-  //  mpu.setZAccelOffset(415);
-  //  mpu.setXGyroOffset(93);
-  //  mpu.setYGyroOffset(-23);
-  //  mpu.setZGyroOffset(-11);
 
   AFMS.begin();
   leftMotor->setSpeed(1);
@@ -116,8 +104,7 @@ void loop() {
   gVal = gVal + gDir;
   bVal = bVal + bDir;
 
-  // for each color, change direction if
-  // you reached 0 or 255
+  // for each color, change direction if reached 0 or 255
   if (rVal >= 255 || rVal <= 0) {
     rDir = rDir * -1;
   }
@@ -129,8 +116,7 @@ void loop() {
   if (bVal >= 255 || bVal <= 0) {
     bDir = bDir * -1;
   }
-//  RGB_color(rVal, gVal, bVal);
-//  Serial.println(buttonState);
+  RGB_color(rVal, gVal, bVal);
   if (buttonState == 1) {
     active = !active;
     delay(200);
@@ -139,8 +125,6 @@ void loop() {
   if (active) {
     digitalWrite(5, HIGH);
     digitalWrite(4, HIGH);
-//    inKp = analogRead(A1);
-//    Kp = map(inKp, 0, 1023, 0, 50.0);
     _main();
   }
   else {
@@ -149,7 +133,6 @@ void loop() {
     digitalWrite(5, LOW);
     digitalWrite(4, LOW);
   }
-//  _main();
 }
 void _main() {
   currTime = millis();
@@ -166,7 +149,6 @@ void _main() {
   }
   
   prevAngle = currentAngle;
-//  prevPrevMotorSpeed = prevMotorSpeed;
   prevMotorSpeed = motorSpeed;
   prevPrevAngle = prevAngle;
   prevAngle = currentAngle;
@@ -175,15 +157,6 @@ void _main() {
 void getCurrentAngle(double elapsedTime) {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
-
-//  accZ = a.acceleration.z;
-//  accX = a.acceleration.x;
-//  accAngle = atan2(accX, accZ) * RtoD;
-
-//  Complementary Filter
-//  gyroRate = map(gyroY, -32768, 32767, -250, 250);
-//  gyroAngle = gyroAngle + (float)gyroRate * elapsedTime;
-//  currentAngle = tau * (prevAngle + gyroAngle*loopTime) + (1 - tau) * accAngle;
 
 //  Kalman Filter
   gyroY = g.gyro.y;
@@ -199,21 +172,8 @@ void calcSpeed(double angle) {
   errSum = constrain(errSum, -300, 300);
   motorSpeed = Kp * error + Ki * errSum + Kd * (error - prevError) / loopTime;
   prevError = error;
-
-  // hopefully reduce jitter :)
-//  if (abs(motorSpeed) < motorCutoff && ((motorSpeed < 0 && prevMotorSpeed > 0) || (motorSpeed > 0 && prevMotorSpeed < 0))) {
-//    motorSpeed = -motorSpeed;
-//  }
-
-
-//  if (motorSpeed > 0) {
-//    motorSpeed *= motorSpeed;
-//  }
-//  else {
-//    motorSpeed *= motorSpeed;
-//    motorSpeed = -motorSpeed;
-//  }
 }
+
 void drive() {
   if (motorSpeed > motorCutoff  || motorSpeed < -motorCutoff) {
     Astepper.setSpeed(motorSpeed);
@@ -240,10 +200,8 @@ void startPing() {
   delay(50);
 }
 
-void RGB_color(int red, int green, int blue)
- {
+void RGB_color(int red, int green, int blue) {
   analogWrite(11, red);
   analogWrite(10, green);
   analogWrite(9, blue);
-
 }
